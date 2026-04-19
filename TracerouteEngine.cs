@@ -28,6 +28,10 @@ internal sealed class TracerouteEngine : IDisposable
     // Set to >= 0 when the destination has been reached; we stop probing beyond it
     private int _destHopIndex = -1;
 
+    // Number of completed probe rounds (one round = one full pass over active hops).
+    // Used by Program.cs to implement `-c <count>` the way real mtr does.
+    public int CompletedRounds { get; private set; }
+
     public TracerouteEngine(IPAddress destination,
                             DnsResolver dns,
                             uint timeoutMs  = 3000,
@@ -46,60 +50,72 @@ internal sealed class TracerouteEngine : IDisposable
     /// </summary>
     public async Task RunAsync(CancellationToken ct)
     {
-        while (!ct.IsCancellationRequested)
+        try
         {
-            int limit = Math.Min(_activeHops, MaxHops);
-
-            for (int i = 0; i < limit && !ct.IsCancellationRequested; i++)
+            while (!ct.IsCancellationRequested)
             {
-                byte ttl  = (byte)(i + 1);
-                var  hop  = Hops[i];
+                // Until we've found the destination, probe every TTL up to MaxHops.
+                // Once we know which hop is the destination, only probe up to there.
+                int limit = _destHopIndex >= 0 ? _destHopIndex + 1 : MaxHops;
 
-                hop.RecordSent();
-                ProbeResult result = _probe.Send(_destination, ttl, _timeoutMs);
-
-                switch (result.Status)
+                for (int i = 0; i < limit && !ct.IsCancellationRequested; i++)
                 {
-                    case ProbeStatus.Reply:
-                        // Reached the destination
-                        hop.RecordReply(result.Address!, result.RoundTripMs);
-                        TriggerDns(hop, result.Address!);
-                        _destHopIndex = i;
-                        _activeHops   = i + 1;
-                        break;
+                    byte ttl  = (byte)(i + 1);
+                    var  hop  = Hops[i];
 
-                    case ProbeStatus.TtlExpired:
-                        // Found an intermediate hop
-                        hop.RecordReply(result.Address!, result.RoundTripMs);
-                        TriggerDns(hop, result.Address!);
-                        // Expand the active range if we haven't found the dest yet
-                        if (_destHopIndex < 0 && i == _activeHops - 1)
-                            _activeHops = Math.Min(_activeHops + 1, MaxHops);
-                        break;
+                    hop.RecordSent();
+                    ProbeResult result = _probe.Send(_destination, ttl, _timeoutMs);
 
-                    case ProbeStatus.Timeout:
-                        hop.RecordTimeout();
-                        // Still expand if we haven't reached dest
-                        if (_destHopIndex < 0 && i == _activeHops - 1)
-                            _activeHops = Math.Min(_activeHops + 1, MaxHops);
-                        break;
+                    switch (result.Status)
+                    {
+                        case ProbeStatus.Reply:
+                            // Reached the destination — remember where, and trim future rounds.
+                            hop.RecordReply(result.Address!, result.RoundTripMs);
+                            TriggerDns(hop, result.Address!);
+                            _destHopIndex = i;
+                            _activeHops   = i + 1;
+                            break;
 
-                    case ProbeStatus.Unreachable:
-                        if (result.Address is not null)
-                        {
-                            hop.RecordReply(result.Address, result.RoundTripMs);
-                            TriggerDns(hop, result.Address);
-                        }
-                        else
-                        {
+                        case ProbeStatus.TtlExpired:
+                            // Intermediate router
+                            hop.RecordReply(result.Address!, result.RoundTripMs);
+                            TriggerDns(hop, result.Address!);
+                            if (_activeHops < i + 1) _activeHops = i + 1;
+                            break;
+
+                        case ProbeStatus.Timeout:
                             hop.RecordTimeout();
-                        }
-                        break;
+                            if (_activeHops < i + 1) _activeHops = i + 1;
+                            break;
+
+                        case ProbeStatus.Unreachable:
+                            if (result.Address is not null)
+                            {
+                                hop.RecordReply(result.Address, result.RoundTripMs);
+                                TriggerDns(hop, result.Address);
+                            }
+                            else
+                            {
+                                hop.RecordTimeout();
+                            }
+                            if (_activeHops < i + 1) _activeHops = i + 1;
+                            break;
+                    }
+
+                    // Stop this round once the destination has been reached.
+                    if (_destHopIndex >= 0 && i >= _destHopIndex) break;
+
+                    if (_intervalMs > 0)
+                        await Task.Delay(_intervalMs, ct).ConfigureAwait(false);
                 }
 
-                if (_intervalMs > 0)
-                    await Task.Delay(_intervalMs, ct).ConfigureAwait(false);
+                // One full pass over all active hops done.
+                CompletedRounds++;
             }
+        }
+        catch (OperationCanceledException)
+        {
+            // Normal shutdown path — Task.Delay throws this when the token fires.
         }
     }
 

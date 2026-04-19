@@ -75,14 +75,14 @@ ui.DrawHeader(localHost, destination, !noDns);
 var engineTask = Task.Run(() => engine.RunAsync(cts.Token));
 
 // ── UI refresh + keyboard loop ───────────────────────────────────────────────
-int cycle = 0;
 try
 {
     while (!cts.Token.IsCancellationRequested)
     {
         ui.Refresh(engine.Hops, engine.ActiveHopCount);
-        cycle++;
-        if (cycle >= maxCycles) { cts.Cancel(); break; }
+
+        // mtr -c: exit after N completed probe rounds across all active hops
+        if (engine.CompletedRounds >= maxCycles) { cts.Cancel(); break; }
 
         // Non-blocking keyboard check (~100ms budget split into 10 × 10ms)
         for (int t = 0; t < 10 && !cts.Token.IsCancellationRequested; t++)
@@ -108,14 +108,16 @@ try
                         break;
                 }
             }
-            await Task.Delay(10, cts.Token).ConfigureAwait(false);
+            try { await Task.Delay(10, cts.Token).ConfigureAwait(false); }
+            catch (OperationCanceledException) { break; }
         }
     }
 }
 catch (OperationCanceledException) { /* normal exit */ }
 finally
 {
-    await engineTask.ConfigureAwait(false);
+    try { await engineTask.ConfigureAwait(false); }
+    catch (OperationCanceledException) { /* normal shutdown */ }
     engine.Dispose();
     ui.Teardown();
 }
