@@ -15,6 +15,7 @@ internal sealed class ConsoleUi
     private const int ColHop   = 3;
     private const int ColHost  = 40;
     private const int ColLoss  = 7;   // "100.0%"
+    private const int ColLost  = 5;   // absolute dropped-probe count
     private const int ColSnt   = 5;
     private const int ColLast  = 7;
     private const int ColAvg   = 7;
@@ -54,13 +55,13 @@ internal sealed class ConsoleUi
 
         // Column header row
         string header = string.Format(
-            "  {0,3}  {1,-40}  {2,7}  {3,5}  {4,7}  {5,7}  {6,7}  {7,7}  {8,7}",
-            "", "Host", "Loss%", "Snt", "Last", "Avg", "Best", "Wrst", "StDev");
+            "  {0,3}  {1,-40}  {2,7}  {3,5}  {4,5}  {5,7}  {6,7}  {7,7}  {8,7}  {9,7}",
+            "", "Host", "Loss%", "Lost", "Snt", "Last", "Avg", "Best", "Wrst", "StDev");
         WriteColor(header, ConsoleColor.White);
         Console.WriteLine();
-        WriteColor("  " + new string('─', ColHop + 2 + ColHost + 2 + ColLoss + 2 + ColSnt +
-                                        2 + ColLast + 2 + ColAvg + 2 + ColBest + 2 + ColWrst +
-                                        2 + ColStDev), ConsoleColor.DarkGray);
+        WriteColor("  " + new string('─', ColHop + 2 + ColHost + 2 + ColLoss + 2 + ColLost +
+                                        2 + ColSnt + 2 + ColLast + 2 + ColAvg + 2 + ColBest +
+                                        2 + ColWrst + 2 + ColStDev), ConsoleColor.DarkGray);
         Console.WriteLine();
     }
 
@@ -143,6 +144,10 @@ internal sealed class ConsoleUi
 
         // Loss
         WriteColor($"{loss,ColLoss}", lossColor);
+        Console.Write("  ");
+
+        // Lost (absolute count) — same colour as Loss% so they read as a pair
+        WriteColor($"{s.Lost,ColLost}", lossColor);
         Console.Write("  ");
 
         // Counters + RTT columns

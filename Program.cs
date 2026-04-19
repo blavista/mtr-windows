@@ -4,7 +4,7 @@ using MtrWindows;
 // ── Argument parsing ────────────────────────────────────────────────────────
 if (args.Length == 0 || args[0] is "-h" or "--help")
 {
-    Console.WriteLine("Usage: mtr-windows [options] <host>");
+    Console.WriteLine("Usage: mtr [options] <host>");
     Console.WriteLine();
     Console.WriteLine("Options:");
     Console.WriteLine("  -n              No DNS resolution");

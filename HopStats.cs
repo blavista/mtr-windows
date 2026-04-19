@@ -55,6 +55,7 @@ internal sealed class HopStats
         IPAddress? Address,
         string     Host,         // hostname if resolved, else IP string, else "???"
         double     LossPct,
+        int        Lost,         // Sent - Received — absolute count of dropped probes
         int        Sent,
         int        Received,
         double     Last,
@@ -67,7 +68,8 @@ internal sealed class HopStats
     {
         int    sent = _sent;
         int    recv = _received;
-        double loss = sent == 0 ? 0.0 : (sent - recv) * 100.0 / sent;
+        int    lost = sent - recv;
+        double loss = sent == 0 ? 0.0 : lost * 100.0 / sent;
         double best  = recv == 0 ? 0.0 : _best;
         double stdev = recv < 2  ? 0.0 : Math.Sqrt(_m2 / (_received - 1));
 
@@ -79,6 +81,7 @@ internal sealed class HopStats
             Address:  _address,
             Host:     host,
             LossPct:  loss,
+            Lost:     lost,
             Sent:     sent,
             Received: recv,
             Last:     recv == 0 ? 0.0 : _last,
