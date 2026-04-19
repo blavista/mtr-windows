@@ -25,6 +25,10 @@ internal sealed class ConsoleUi
     private int    _headerRow = -1;   // console row where header was printed
     private bool   _vt100Enabled;
 
+    // Remembered so the hint line can be rewritten when DNS is toggled
+    private string _localHost = string.Empty;
+    private IPAddress? _destination;
+
     public ConsoleUi()
     {
         TryEnableVt100();
@@ -36,15 +40,16 @@ internal sealed class ConsoleUi
 
     public void DrawHeader(string localHost, IPAddress destination, bool dnsEnabled)
     {
+        _localHost   = localHost;
+        _destination = destination;
+
         Console.Clear();
         _headerRow = Console.CursorTop;
 
         WriteColor($"  {localHost} → {destination}", ConsoleColor.Cyan);
         Console.WriteLine();
 
-        string dnsNote = dnsEnabled ? "" : "  [DNS off — press D]";
-        WriteColor($"  Keys: Q=Quit  D=Toggle DNS  R=Reset{dnsNote}", ConsoleColor.DarkGray);
-        Console.WriteLine();
+        WriteHintLine(dnsEnabled);
         Console.WriteLine();
 
         // Column header row
@@ -60,9 +65,20 @@ internal sealed class ConsoleUi
     }
 
     /// <summary>
+    /// Rewrites the hint line in place, reflecting the current DNS state.
+    /// </summary>
+    public void UpdateDnsState(bool dnsEnabled)
+    {
+        if (_headerRow < 0) return;
+        SetCursorRow(_headerRow + 1);
+        WriteHintLine(dnsEnabled);
+        Console.Write("\x1b[0K"); // clear any leftover chars from a longer previous hint
+    }
+
+    /// <summary>
     /// Redraws all hop rows in-place. Should be called ~10 times/second.
     /// </summary>
-    public void Refresh(HopStats[] hops, int activeCount)
+    public void Refresh(HopStats[] hops, int activeCount, bool dnsEnabled)
     {
         if (_headerRow < 0) return;
 
@@ -73,19 +89,30 @@ internal sealed class ConsoleUi
         for (int i = 0; i < activeCount; i++)
         {
             var s = hops[i].GetSnapshot();
-            DrawHopRow(i + 1, s);
+            DrawHopRow(i + 1, s, dnsEnabled);
         }
+    }
+
+    private static void WriteHintLine(bool dnsEnabled)
+    {
+        string dnsNote = dnsEnabled ? "" : "  [DNS off — press D]";
+        WriteColor($"  Keys: Q=Quit  D=Toggle DNS  R=Reset{dnsNote}", ConsoleColor.DarkGray);
     }
 
     // ── Private helpers ──────────────────────────────────────────────────
 
-    private static void DrawHopRow(int hopNum, HopStats.Snapshot s)
+    private static void DrawHopRow(int hopNum, HopStats.Snapshot s, bool dnsEnabled)
     {
         bool isUnknown = s.Address is null;
 
-        string hostDisplay = s.Host.Length > ColHost
-            ? s.Host[..(ColHost - 1)] + "…"
-            : s.Host;
+        // When DNS display is off, show the IP even if we happen to have resolved a hostname.
+        string label = dnsEnabled
+            ? s.Host
+            : (s.Address?.ToString() ?? "???");
+
+        string hostDisplay = label.Length > ColHost
+            ? label[..(ColHost - 1)] + "…"
+            : label;
 
         string loss = $"{s.LossPct:F1}%";
 

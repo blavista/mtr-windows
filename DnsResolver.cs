@@ -13,9 +13,14 @@ internal sealed class DnsResolver
     private readonly ConcurrentDictionary<string, string> _cache  = new();
     private readonly ConcurrentDictionary<string, byte>   _inflight = new();
 
-    private readonly bool _enabled;
+    /// <summary>
+    /// When false, no new reverse lookups are performed.
+    /// Already-resolved names stay in the cache; the UI's own display toggle
+    /// decides whether to show them. Safe to flip at any time.
+    /// </summary>
+    public bool Enabled { get; set; }
 
-    public DnsResolver(bool enabled = true) => _enabled = enabled;
+    public DnsResolver(bool enabled = true) => Enabled = enabled;
 
     /// <summary>
     /// Asynchronously resolves <paramref name="address"/> and calls
@@ -24,7 +29,7 @@ internal sealed class DnsResolver
     /// </summary>
     public void Resolve(IPAddress address, Action<string> callback)
     {
-        if (!_enabled) return;
+        if (!Enabled) return;
 
         string key = address.ToString();
 
@@ -59,6 +64,6 @@ internal sealed class DnsResolver
         });
     }
 
-    public void Toggle() => throw new NotSupportedException(
-        "Create a new DnsResolver with enabled toggled.");
+    /// <summary>Flips the Enabled flag. Returns the new state.</summary>
+    public bool Toggle() => Enabled = !Enabled;
 }

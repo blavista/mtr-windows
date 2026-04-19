@@ -60,7 +60,9 @@ catch (Exception ex)
 string localHost = Dns.GetHostName();
 
 // ── Setup ───────────────────────────────────────────────────────────────────
-var dns    = new DnsResolver(enabled: !noDns);
+bool dnsEnabled = !noDns;          // runtime-mutable: flipped by the D key
+
+var dns    = new DnsResolver(enabled: dnsEnabled);
 var engine = new TracerouteEngine(destination, dns, timeout, interval);
 var ui     = new ConsoleUi();
 
@@ -69,7 +71,7 @@ using var cts = new CancellationTokenSource();
 // Ctrl+C handler
 Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
 
-ui.DrawHeader(localHost, destination, !noDns);
+ui.DrawHeader(localHost, destination, dnsEnabled);
 
 // ── Engine runs on background thread ────────────────────────────────────────
 var engineTask = Task.Run(() => engine.RunAsync(cts.Token));
@@ -79,7 +81,7 @@ try
 {
     while (!cts.Token.IsCancellationRequested)
     {
-        ui.Refresh(engine.Hops, engine.ActiveHopCount);
+        ui.Refresh(engine.Hops, engine.ActiveHopCount, dnsEnabled);
 
         // mtr -c: exit after N completed probe rounds across all active hops
         if (engine.CompletedRounds >= maxCycles) { cts.Cancel(); break; }
@@ -102,9 +104,11 @@ try
                         break;
 
                     case ConsoleKey.D:
-                        // Toggle DNS — note: existing resolved names stay; new ones stop/start
-                        // A full toggle would require swapping the DnsResolver, kept simple here
-                        Console.Beep(800, 50);
+                        // Toggle both the resolver (stop/start future lookups) and the
+                        // display preference (show hostnames vs raw IPs). Already-cached
+                        // names are kept — flipping D back on makes them reappear.
+                        dnsEnabled = dns.Toggle();
+                        ui.UpdateDnsState(dnsEnabled);
                         break;
                 }
             }
