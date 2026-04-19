@@ -8,6 +8,18 @@
     <AssemblyName>mtr-windows</AssemblyName>
     <RootNamespace>MtrWindows</RootNamespace>
     <Platforms>x64</Platforms>
+
+    <!-- NativeAOT: produces a single standalone .exe with no .NET runtime dependency.
+         Requires Visual Studio C++ Build Tools (Desktop development with C++ workload)
+         to be installed on the machine doing the publish. -->
+    <PublishAot>true</PublishAot>
+
+    <!-- Strips ICU globalization data; we don't do culture-aware formatting here.
+         Saves roughly 10 MB in the published exe. -->
+    <InvariantGlobalization>true</InvariantGlobalization>
+
+    <!-- Optimize for size over raw throughput — this is a CLI tool, not a hot loop. -->
+    <OptimizationPreference>Size</OptimizationPreference>
   </PropertyGroup>
 
 </Project>
