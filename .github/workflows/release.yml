@@ -1,0 +1,75 @@
+name: Release
+
+# Triggered when a tag matching v* (e.g. v0.1.0, v1.2.3) is pushed.
+# Builds a NativeAOT mtr.exe on a Windows runner, generates a SHA256
+# checksum, and publishes both as assets on a new GitHub Release.
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write   # needed by softprops/action-gh-release to create the release
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest   # ships with VS Build Tools + Windows SDK that NativeAOT needs
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 9 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Publish (NativeAOT, win-x64)
+        run: dotnet publish -c Release -r win-x64
+
+      - name: Stage release artifacts
+        shell: pwsh
+        run: |
+          $publishDir = "bin\Release\net9.0-windows\win-x64\publish"
+          New-Item -ItemType Directory -Path artifacts | Out-Null
+          Copy-Item "$publishDir\mtr.exe" -Destination artifacts\
+
+          # Standard "<lowercase-hex-hash>  <filename>" format that
+          # `sha256sum -c` understands on Linux/macOS, and that PowerShell
+          # users can verify by eye.
+          $hash = (Get-FileHash artifacts\mtr.exe -Algorithm SHA256).Hash.ToLower()
+          "$hash  mtr.exe" | Out-File -Encoding ascii artifacts\SHA256SUMS
+
+          Write-Host "Built mtr.exe — SHA256: $hash"
+          Write-Host "Size: $((Get-Item artifacts\mtr.exe).Length) bytes"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/mtr.exe
+            artifacts/SHA256SUMS
+          generate_release_notes: true
+          body: |
+            ## mtr ${{ github.ref_name }}
+
+            Standalone Windows console traceroute, NativeAOT-compiled.
+            **No .NET runtime required.** Just download `mtr.exe` and run it.
+
+            ### Verify the download
+
+            ```powershell
+            (Get-FileHash mtr.exe -Algorithm SHA256).Hash.ToLower()
+            ```
+
+            Should match the value in `SHA256SUMS`.
+
+            ### First run
+
+            Windows SmartScreen shows a "Windows protected your PC" warning
+            the first time you run any unsigned executable downloaded from
+            the internet. Click **More info** → **Run anyway**.
+
+            This is expected behavior for unsigned open-source binaries.
+            The SHA256 above lets you verify the file matches exactly what
+            this tag's source code built to.
