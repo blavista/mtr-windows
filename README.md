@@ -6,7 +6,8 @@
 
 A standalone Windows console traceroute in the style of [mtr](https://github.com/traviscross/mtr) — continuously probes every hop to a destination, showing live loss and latency statistics for each one. NativeAOT-compiled to a single `mtr.exe` with no .NET runtime dependency.
 
-<img width="1106" height="616" alt="image" src="https://github.com/user-attachments/assets/34ce1ba4-5c6f-4f91-8444-784c535adca5" />
+<img width="1096" height="588" alt="image" src="https://github.com/user-attachments/assets/06279e63-030a-44a5-a374-ec6bbb05c240" />
+
 
 ## Install
 
