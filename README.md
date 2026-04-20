@@ -6,19 +6,7 @@
 
 A standalone Windows console traceroute in the style of [mtr](https://github.com/traviscross/mtr) — continuously probes every hop to a destination, showing live loss and latency statistics for each one. NativeAOT-compiled to a single `mtr.exe` with no .NET runtime dependency.
 
-```
-                                   My traceroute  [mtr-windows]
-MyMachine (10.0.0.42)                                            2026-04-20 14:32:18
-Keys:  Q quit    D toggle DNS    R reset                                       DNS: on
-
-                                     Packets               Pings
- Host                               Loss%  Lost  Snt   Last   Avg  Best  Wrst StDev
- 1. router.home (10.0.0.1)           0.0%     0   42    0.8   0.9   0.7   2.1   0.2
- 2. 96.120.90.45                     0.0%     0   42    9.4  10.1   8.8  15.3   1.2
- 3. be-33650-ar01.fremont.ca.sfba    0.0%     0   42   11.2  11.8  10.7  14.9   0.8
- ...
- 9. dns.google (8.8.8.8)             0.0%     0   42   12.0  12.4  11.5  16.1   1.0
-```
+<img width="1106" height="616" alt="image" src="https://github.com/user-attachments/assets/34ce1ba4-5c6f-4f91-8444-784c535adca5" />
 
 ## Install
 
