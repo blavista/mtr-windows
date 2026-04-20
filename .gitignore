@@ -1,7 +1,26 @@
+# Build output
 bin/
 obj/
-*.user
+publish/
+
+# Visual Studio / Rider / VS Code
 .vs/
+.idea/
+.vscode/
+*.user
 *.suo
 *.userprefs
-.vscode/
+*.usertasks
+
+# NativeAOT debug symbols / standalone binaries belong in Releases, not the repo
+*.pdb
+*.exe
+
+# Local testing / scratch
+*.log
+*.tmp
+
+# OS metadata
+Thumbs.db
+Desktop.ini
+.DS_Store
