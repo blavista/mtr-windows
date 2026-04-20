@@ -8,6 +8,7 @@
     <AssemblyName>mtr</AssemblyName>
     <RootNamespace>MtrWindows</RootNamespace>
     <Platforms>x64</Platforms>
+    <ApplicationIcon>mtr.ico</ApplicationIcon>
 
     <!-- NativeAOT: produces a single standalone .exe with no .NET runtime dependency.
          Requires Visual Studio C++ Build Tools (Desktop development with C++ workload)
