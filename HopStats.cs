@@ -68,7 +68,10 @@ internal sealed class HopStats
     {
         int    sent = _sent;
         int    recv = _received;
-        int    lost = sent - recv;
+        // Clamp: between RecordReply() and the engine's follow-up RecordSent(),
+        // _received can briefly be one ahead of _sent. Without this the Lost
+        // column would flicker -1 for a few nanoseconds after every reply.
+        int    lost = Math.Max(0, sent - recv);
         double loss = sent == 0 ? 0.0 : lost * 100.0 / sent;
         double best  = recv == 0 ? 0.0 : _best;
         double stdev = recv < 2  ? 0.0 : Math.Sqrt(_m2 / (_received - 1));

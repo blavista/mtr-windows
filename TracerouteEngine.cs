@@ -63,7 +63,10 @@ internal sealed class TracerouteEngine : IDisposable
                     byte ttl  = (byte)(i + 1);
                     var  hop  = Hops[i];
 
-                    hop.RecordSent();
+                    // Send the probe first, then record the outcome. This avoids a
+                    // UI race where `_sent` is bumped before `_received` catches up,
+                    // which would briefly show Lost = 1 during every in-flight probe
+                    // on a lossless connection.
                     ProbeResult result = _probe.Send(_destination, ttl, _timeoutMs);
 
                     switch (result.Status)
@@ -101,6 +104,11 @@ internal sealed class TracerouteEngine : IDisposable
                             if (_activeHops < i + 1) _activeHops = i + 1;
                             break;
                     }
+
+                    // Bump the sent counter once the outcome is known, so `_sent`
+                    // and `_received` move in lockstep. Timed-out probes count as
+                    // sent (but not received); replies count as both.
+                    hop.RecordSent();
 
                     // Stop this round once the destination has been reached.
                     if (_destHopIndex >= 0 && i >= _destHopIndex) break;
